@@ -1,0 +1,47 @@
+version: '3'
+
+services:
+  master:
+    build:
+      context: ./master
+    container_name: master_instance
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - internal_network
+
+
+  secondary1:
+    build:
+      context: ./secondary
+    container_name: secondary_instance_1
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - WEBSOCKET_HOST=master_instance
+      - RESPONSE_TIMEOUT=10
+    depends_on:
+      - master
+    networks:
+      - internal_network
+
+  secondary2:
+    build:
+      context: ./secondary
+    container_name: secondary_instance_2
+    restart: unless-stopped
+    ports:
+      - "3002:3001"
+    environment:
+      - WEBSOCKET_HOST=master_instance
+      - RESPONSE_TIMEOUT=5000
+    depends_on:
+      - master
+    networks:
+      - internal_network
+
+networks:
+  internal_network:
+    driver: bridge
