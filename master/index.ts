@@ -25,7 +25,7 @@ const server = Bun.serve({
           console.log('all ACK received')
 
           if (acknowledgements.every((ack) => ack === 'ACK')) {
-            return new Response(JSON.stringify(messages.at(-1)));
+            return new Response(JSON.stringify(newItem));
           } else {
             throw new Error("replication error");
           }
