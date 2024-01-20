@@ -30,8 +30,14 @@ socket.addEventListener("message", event => {
   setTimeout(() => {
     const messageString = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data);
     const newMessage: Item = JSON.parse(messageString);
-    messages.push(newMessage);
-    socket.send(JSON.stringify({ messageId: newMessage.id, status: 'ACK' }));
+    if (!messages.at(newMessage.id)) { // ensure messages deduplication
+      messages.push(newMessage);
+
+      if (messages.length !== newMessage.id) { // reorder messages in case of inconsistent total order
+        messages.sort((message1, message2) => message1.id - message2.id);
+      }
+      socket.send(JSON.stringify({ messageId: newMessage.id, status: 'ACK' }));
+    }
   }, Number(process.env.RESPONSE_TIMEOUT) || 10);
 });
 
