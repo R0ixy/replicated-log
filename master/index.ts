@@ -1,7 +1,8 @@
 import { once } from 'node:events';
 
 import { webSocketInstance } from './websocket.ts';
-import { ee, secondariesIdList, messages } from './utils.ts';
+import { ee, secondariesIdList, messages, nResolve } from './utils.ts';
+import type { ReqBody } from './types.ts';
 
 const server = Bun.serve({
   async fetch(req) {
@@ -16,16 +17,28 @@ const server = Bun.serve({
       }
       case 'POST': {
         if (url.pathname === '/') {
-          const data = await req.json();
-          const newItem = { id: crypto.randomUUID(), ...data }
-          messages.push(newItem);
+          const data: ReqBody = await req.json();
+          const { message, w } = data;
+          const newMessage = { id: messages.length + 1, message };
+          messages.push(newMessage);
 
-          webSocketInstance.publish('replication', JSON.stringify(newItem));
-          const [acknowledgements] = await Promise.all(secondariesIdList.map(async (id) => once(ee, `ack-${id}`)));
-          console.log('all ACK received')
+          webSocketInstance.publish('replication', JSON.stringify(newMessage));
+          if (w === 1) { // if w === 1 means we don't care about status of replication. Can respond immediately
+            console.log(`response without ACK for message ${newMessage.id}`)
+            return new Response(JSON.stringify(newMessage));
+          }
+
+          let acknowledgements: string[];
+          if (w) {
+            acknowledgements = await nResolve(secondariesIdList.map(async (id) => once(ee, `ack-${id}-${newMessage.id}`)), w - 1);
+
+          } else { // if write concern is not specified we wait for all ACK
+            [acknowledgements] = await Promise.all(secondariesIdList.map(async (id) => once(ee, `ack-${id}-${newMessage.id}`)));
+          }
+          console.log(`${acknowledgements.length} ACK for message ${newMessage.id} received`);
 
           if (acknowledgements.every((ack) => ack === 'ACK')) {
-            return new Response(JSON.stringify(newItem));
+            return new Response(JSON.stringify(newMessage));
           } else {
             throw new Error("replication error");
           }

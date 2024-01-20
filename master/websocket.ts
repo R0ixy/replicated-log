@@ -1,4 +1,7 @@
+import { type ServerWebSocket } from 'bun';
+
 import { ee, secondariesIdList } from './utils.ts';
+import type { ACKMessage } from './types.ts';
 
 const webSocketInstance = Bun.serve({
   fetch(req, server) {
@@ -9,22 +12,24 @@ const webSocketInstance = Bun.serve({
       : new Response("WebSocket upgrade error", { status: 400 });
   },
   websocket: {
-    open(ws) {
+    open(ws: ServerWebSocket<{ serverId: string }>) {
       ws.subscribe("replication");
-      // @ts-ignore
+
       const { serverId } = ws.data;
       secondariesIdList.push(serverId)
       console.log(`new client [${serverId}] connected to websocket`)
     },
-    message(ws, message) {
-      // @ts-ignore
+    message(ws: ServerWebSocket<{ serverId: string }>, message) {
       const { serverId } = ws.data;
-      console.log(`new message from ${serverId}:`, message);
-      ee.emit(`ack-${serverId}`, message);
+      const messageString = typeof message === 'string' ? message : new TextDecoder().decode(message);
+      const newMessage: ACKMessage = JSON.parse(messageString);
+      console.log(`new ACK from ${serverId} for message ${newMessage.messageId}`);
+
+      ee.emit(`ack-${serverId}-${newMessage.messageId}`, newMessage.status); // using ack-{serverId}-{messageId}
     },
-    close(ws) {
+    close(ws: ServerWebSocket<{ serverId: string }>) {
       ws.unsubscribe('replication');
-      // @ts-ignore
+
       const { serverId } = ws.data;
       const index = secondariesIdList.findIndex((item) => item === serverId);
       secondariesIdList.splice(index, 0);

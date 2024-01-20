@@ -1,4 +1,4 @@
-import { messages } from './utils.ts';
+import { messages, type Item } from './utils.ts';
 
 const server = Bun.serve({
   async fetch(req) {
@@ -29,8 +29,9 @@ socket.addEventListener("message", event => {
 
   setTimeout(() => {
     const messageString = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data);
-    messages.push(JSON.parse(messageString));
-    socket.send('ACK');
+    const newMessage: Item = JSON.parse(messageString);
+    messages.push(newMessage);
+    socket.send(JSON.stringify({ messageId: newMessage.id, status: 'ACK' }));
   }, Number(process.env.RESPONSE_TIMEOUT) || 10);
 });
 

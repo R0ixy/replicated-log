@@ -1,8 +1,8 @@
 interface Item {
   id: string;
-  message: string
+  message: string;
 }
 
 const messages: Item[] = [];
 
-export { messages };
+export { messages, type Item };
