@@ -7,7 +7,7 @@ const secondariesIdList: string[] = [];
 const messages: Item[] = [];
 
 const nResolve = (promises: Promise<any[]>[], n: number): Promise<string[]> => {
-  if (n < 0) throw Error('Invalid n: ' + n);
+  if (n < 0 || n > promises.length) return Promise.reject(`Invalid write concern: ${n}`);
 
   const results: string[] = []
   let rejected = 0;
