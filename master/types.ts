@@ -1,3 +1,5 @@
+import type { Server } from 'bun';
+
 interface Item {
   id: number;
   message: string;
@@ -13,4 +15,10 @@ interface ACKMessage {
   status: string;
 }
 
-export type { Item, ReqBody, ACKMessage };
+interface replicateFunc {
+  webSocketInstance: Server;
+  replicationHistory: Map<number, string[]>;
+  serverId: string;
+}
+
+export type { Item, ReqBody, ACKMessage, replicateFunc };

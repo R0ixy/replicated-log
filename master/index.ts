@@ -1,7 +1,9 @@
 import { once } from 'node:events';
 
 import { webSocketInstance } from './websocket.ts';
-import { ee, secondariesIdList, messages, nResolve } from './utils.ts';
+import { secondariesList, messages } from './store.ts';
+import { ee, nResolve } from './utils.ts';
+
 import type { ReqBody } from './types.ts';
 
 const server = Bun.serve({
@@ -22,7 +24,7 @@ const server = Bun.serve({
           const newMessage = { id: messages.length + 1, message };
           messages.push(newMessage);
 
-          webSocketInstance.publish('replication', JSON.stringify(newMessage));
+          webSocketInstance.publish('replication', JSON.stringify({ route: 'new', data: newMessage })); // TODO: send route and message
           if (w === 1) { // if w === 1 means we don't care about status of replication. Can respond immediately
             console.log(`response without ACK for message ${newMessage.id}`)
             return new Response(JSON.stringify(newMessage));
@@ -30,10 +32,10 @@ const server = Bun.serve({
 
           let acknowledgements: string[];
           if (w) {
-            acknowledgements = await nResolve(secondariesIdList.map(async (id) => once(ee, `ack-${id}-${newMessage.id}`)), w - 1);
+            acknowledgements = await nResolve(secondariesList.map(async (id) => once(ee, `ack-${id}-${newMessage.id}`)), w - 1);
 
           } else { // if write concern is not specified we wait for all ACK
-            [acknowledgements] = await Promise.all(secondariesIdList.map(async (id) => once(ee, `ack-${id}-${newMessage.id}`)));
+            [acknowledgements] = await Promise.all(secondariesList.map(async (id) => once(ee, `ack-${id}-${newMessage.id}`)));
           }
           console.log(`${acknowledgements.length} ACK for message ${newMessage.id} received`);
 

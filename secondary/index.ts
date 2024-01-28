@@ -1,4 +1,6 @@
-import { messages, type Item } from './utils.ts';
+import { messages, type eventData } from './utils.ts';
+
+const { HOSTNAME, WEBSOCKET_HOST, RESPONSE_TIMEOUT } = process.env;
 
 const server = Bun.serve({
   async fetch(req) {
@@ -19,25 +21,34 @@ const server = Bun.serve({
 
 console.log(`Listening on ${server.url}`);
 
-const socket = new WebSocket(`ws://${process.env.WEBSOCKET_HOST || 'localhost'}:8000`);
+const socket = new WebSocket(`ws://${WEBSOCKET_HOST || 'localhost'}:8000?serverId=${HOSTNAME || 'secondary'}&isBlank=${Boolean(messages.length)}`);
 
 socket.addEventListener("open", event => {
   console.log('open socket connection');
 });
 socket.addEventListener("message", event => {
-  console.log(event.data);
+  const messageString = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data);
+  const newMessageData: eventData = JSON.parse(messageString);
+  const { route, serverId, data: newMessage } = newMessageData;
 
-  setTimeout(() => {
-    const messageString = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data);
-    const newMessage: Item = JSON.parse(messageString);
-    if (!messages.at(newMessage.id)) { // ensure messages deduplication
-      messages.push(newMessage);
+  if (route === 'new') {
+    setTimeout(() => {
+      if (!messages.at(newMessage.id)) { // ensure messages deduplication
+        messages.push(newMessage);
 
-      if (messages.length !== newMessage.id) { // reorder messages in case of inconsistent total order
-        messages.sort((message1, message2) => message1.id - message2.id);
+        if (messages.length !== newMessage.id) { // reorder messages in case of inconsistent total order
+          messages.sort((message1, message2) => message1.id - message2.id);
+        }
+        socket.send(JSON.stringify({ messageId: newMessage.id, status: 'ACK' }));
       }
-      socket.send(JSON.stringify({ messageId: newMessage.id, status: 'ACK' }));
-    }
-  }, Number(process.env.RESPONSE_TIMEOUT) || 10);
+    }, Number(RESPONSE_TIMEOUT) || 10);
+
+  } else if (route === 'old' && serverId && serverId === HOSTNAME) {
+    messages.push(newMessage);
+    messages.sort((message1, message2) => message1.id - message2.id);
+  }
+  if (!serverId || serverId === HOSTNAME) {
+    console.log(event.data);
+  }
 });
 
