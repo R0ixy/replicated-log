@@ -45,12 +45,7 @@ const webSocketInstance = Bun.serve({
       const newMessage: ACKMessage = JSON.parse(messageString);
 
       if (newMessage.route === 'replication' || newMessage.route === 'retry') {
-        // // update replication history
-        // const servers = replicationHistory.get(newMessage.messageId);
-        // replicationHistory.set(newMessage.messageId, [...(servers ? servers : []), serverId]);
 
-        // // emit replication event
-        // ee.emit(`ack-${serverId}-${newMessage.messageId}`, newMessage.status); // using ack-{serverId}-{messageId}
         ee.emit('ack-message', { serverId, messageId: newMessage.messageId, status: newMessage.status });
 
         console.log(`new ACK from ${serverId} for message ${newMessage.messageId}`);
@@ -65,8 +60,6 @@ const webSocketInstance = Bun.serve({
 
       // remove server from the list
       const { serverId } = ws.data;
-      // const index = secondariesList.findIndex((item) => item === serverId);
-      // secondariesList.splice(index, 0);
       secondaries.delete(serverId);
 
       // reset health status

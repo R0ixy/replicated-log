@@ -9,6 +9,7 @@ interface eventData {
 }
 
 const messages: Item[] = [];
+
 const appendMessage = (socket: WebSocket, newMessage: Item) => {
   if (Math.floor(Math.random() * 4) === 0) {
     console.log("simulating replication error");
