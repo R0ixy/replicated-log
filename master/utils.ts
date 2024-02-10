@@ -1,7 +1,8 @@
 import { EventEmitter } from 'node:events';
+import type { ServerWebSocket, Server } from "bun";
 
-import { messages } from './store.ts';
-import type { Item, replicateFunc } from './types.ts';
+import { ackCache, healthStatuses, messages, replicationHistory, secondaries } from './store.ts';
+import type { replicateFunc } from './types.ts';
 
 const ee = new EventEmitter();
 
@@ -23,19 +24,10 @@ const nResolve = (promises: Promise<any[]>[], n: number): Promise<string[]> => {
   });
 }
 
-// const executeReplication = ({ webSocketInstance, replicationHistory, message, serverId }: replicateFunc & { message: Item }) => {
-//   webSocketInstance.publish('replication', JSON.stringify({route: 'old', data: message}));
-//
-//   const servers = replicationHistory.get(message.id);
-//   replicationHistory.set(message.id, [...(servers ? servers : []), serverId])
-//
-//   console.log('replicating old', JSON.stringify(message), 'to', serverId);
-// }
-
-const replicateMissingData = ({webSocketInstance, replicationHistory, serverId}: replicateFunc) => {
+const replicateMissingData = ({ ws, replicationHistory, serverId }: replicateFunc) => {
   messages.forEach((message) => {
     if (!replicationHistory.get(message.id)?.includes(serverId)) {
-      webSocketInstance.publish('replication', JSON.stringify({ route: 'old', data: message }));
+      ws.send(JSON.stringify({ route: 'old', data: message }));
 
       const servers = replicationHistory.get(message.id);
       replicationHistory.set(message.id, [...(servers ? servers : []), serverId])
@@ -45,9 +37,9 @@ const replicateMissingData = ({webSocketInstance, replicationHistory, serverId}:
   });
 }
 
-const replicateAllData = ({webSocketInstance, replicationHistory, serverId}: replicateFunc) => {
+const replicateAllData = ({ ws, replicationHistory, serverId }: replicateFunc) => {
   messages.forEach((message) => {
-    webSocketInstance.publish('replication', JSON.stringify({ route: 'old', serverId, data: message }));
+    ws.send(JSON.stringify({ route: 'old', data: message }));
 
     const servers = replicationHistory.get(message.id);
     if (!servers?.includes(serverId)) {
@@ -58,4 +50,43 @@ const replicateAllData = ({webSocketInstance, replicationHistory, serverId}: rep
   });
 }
 
-export { ee, nResolve, replicateMissingData, replicateAllData };
+const sendHeartbeat = (webSocketInstance: ServerWebSocket<{ serverId: string, isBlank: boolean }>) => {
+  webSocketInstance.send(JSON.stringify({ route: 'health', data: 'ping' }));
+}
+
+const getHealthStatuses = (currentTime: number) => Object.keys(healthStatuses).reduce((accumulator: object, key: string) => {
+  const timeDiff = currentTime - healthStatuses[key];
+  if (timeDiff <= 6000) {
+    return { ...accumulator, [key]: 'healthy' };
+  } else if (6000 < timeDiff && timeDiff <= 10000) {
+    return { ...accumulator, [key]: 'suspicious' };
+  } else {
+    return { ...accumulator, [key]: 'unhealthy' };
+  }
+}, {});
+
+const startRetryProcess = (n: number, newMessage: { id: number, message: string }) => {
+  setTimeout(() => {
+    const result = getHealthStatuses(Date.now());
+    let isRetrySent = false;
+
+    Object.keys(result).forEach(key => {
+      if (result[key] !== 'unhealthy') {
+        const ackCacheData = ackCache.get(newMessage.id);
+        const replicationHistoryData = replicationHistory.get(newMessage.id);
+
+        if (!ackCacheData?.ack.includes(key) && !replicationHistoryData?.includes(key)) {
+          secondaries.get(key)?.send(JSON.stringify({ route: 'retry', data: newMessage }));
+          isRetrySent = true;
+          console.log(`sent retry to ${key} about message ${newMessage.id}`)
+        }
+      }
+    });
+
+    if (isRetrySent) startRetryProcess(n * 1.5, newMessage);
+    else return;
+
+  }, 3000 * n);
+}
+
+export { ee, nResolve, replicateMissingData, replicateAllData, sendHeartbeat, getHealthStatuses, startRetryProcess };

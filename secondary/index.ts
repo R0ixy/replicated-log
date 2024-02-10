@@ -1,4 +1,5 @@
 import { messages, type eventData } from './utils.ts';
+import { appendMessage } from "./utils.ts";
 
 const { HOSTNAME, WEBSOCKET_HOST, RESPONSE_TIMEOUT } = process.env;
 
@@ -27,28 +28,29 @@ socket.addEventListener("open", event => {
   console.log('open socket connection');
 });
 socket.addEventListener("message", event => {
+  console.log(event.data);
   const messageString = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data);
   const newMessageData: eventData = JSON.parse(messageString);
-  const { route, serverId, data: newMessage } = newMessageData;
+  const { route, data: newMessage } = newMessageData;
 
   if (route === 'new') {
-    setTimeout(() => {
-      if (!messages.at(newMessage.id)) { // ensure messages deduplication
-        messages.push(newMessage);
+    try {
+      setTimeout(() => {
+        appendMessage(socket, newMessage);
+      }, Number(RESPONSE_TIMEOUT) || 10);
+    } catch (err) {
+      socket.send(JSON.stringify({ route: 'replication', messageId: newMessage.id, status: 'ERROR' }));
+    }
 
-        if (messages.length !== newMessage.id) { // reorder messages in case of inconsistent total order
-          messages.sort((message1, message2) => message1.id - message2.id);
-        }
-        socket.send(JSON.stringify({ messageId: newMessage.id, status: 'ACK' }));
-      }
-    }, Number(RESPONSE_TIMEOUT) || 10);
-
-  } else if (route === 'old' && serverId && serverId === HOSTNAME) {
+  } else if (route === 'old') {
     messages.push(newMessage);
     messages.sort((message1, message2) => message1.id - message2.id);
-  }
-  if (!serverId || serverId === HOSTNAME) {
-    console.log(event.data);
+
+  } else if (route === 'health') {
+    socket.send(JSON.stringify({ route: 'health', data: 'pong' }));
+
+  } else if (route === 'retry') {
+    appendMessage(socket, newMessage);
   }
 });
 

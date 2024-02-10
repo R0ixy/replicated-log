@@ -1,7 +1,11 @@
-import type { Item } from './types.ts';
+import type { ServerWebSocket } from "bun";
 
-const secondariesList: string[] = [];
+import type { Item, healthStatusesType } from './types.ts';
+
+const secondaries = new Map<string, ServerWebSocket<{ serverId: string, isBlank: boolean }>>;
 const messages: Item[] = [];
 const replicationHistory = new Map<number, string[]>();
+const healthStatuses: healthStatusesType = {};
+const ackCache = new Map<number, { writeConcern: number, ack: string[] }>();
 
-export { secondariesList, messages, replicationHistory };
+export { secondaries, messages, replicationHistory, healthStatuses, ackCache };
