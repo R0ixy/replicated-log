@@ -1,7 +1,7 @@
 import { type ServerWebSocket } from 'bun';
 
-import { secondaries, replicationHistory, healthStatuses, ackCache, messages } from './store.ts';
-import { ee, getHealthStatuses, replicateAllData, replicateMissingData, sendHeartbeat } from './utils.ts';
+import { secondaries, replicationHistory, healthStatuses, ackCache } from './store.ts';
+import { ee, replicateAllData, replicateMissingData, sendHeartbeat } from './utils.ts';
 import type { ACKMessage, EventMessage } from './types.ts';
 
 const interval: { [serverId: string]: Timer } = {};
@@ -13,12 +13,12 @@ const webSocketInstance = Bun.serve({
         data: {
           serverId: new URL(req.url).searchParams.get('serverId'),
           isBlank: new URL(req.url).searchParams.get('isBlank'),
-        }
-      }
+        },
+      },
     );
     return success
       ? undefined
-      : new Response("WebSocket upgrade error", { status: 400 });
+      : new Response('WebSocket upgrade error', { status: 400 });
   },
   websocket: {
     open(ws: ServerWebSocket<{ serverId: string, isBlank: boolean }>) {
@@ -68,7 +68,7 @@ const webSocketInstance = Bun.serve({
       clearInterval(interval[serverId]);
 
       console.log(`client [${serverId}] disconnected from websocket`);
-    }
+    },
   },
   port: 8000,
 });
@@ -83,24 +83,24 @@ ee.addListener('ack-message', (message: EventMessage) => {
     if (history?.length) {
       // if this message has history it means we have already received number of ack that meets a write concern.
       // This ack is just an extra one, so we need to add it to history and that's it
-      replicationHistory.set(messageId, [serverId, ...history])
+      replicationHistory.set(messageId, [serverId, ...history]);
 
     } else { // otherwise add this message to ackCache until we will receive a sufficient number of ack
       const messageData = ackCache.get(messageId);
       if (messageData && messageData?.writeConcern <= messageData?.ack.length + 1) { // check if number of ack meets write concern
         // sending an event about getting all ack
-        ee.emit(`ack-${messageId}`, status)
+        ee.emit(`ack-${messageId}`, status);
 
         // adding this message to replication history only after receiving number of ack that will meet a write concern
-        replicationHistory.set(messageId, [serverId, ...messageData?.ack]);
+        replicationHistory.set(messageId, [serverId, ...messageData.ack]);
         // clear message data form ackCache
         ackCache.delete(messageId);
       } else if (messageData) { // not enough ack to met write concern. Adding ack to array
-        ackCache.set(messageId, { ...messageData, ack: [serverId, ...messageData?.ack] });
+        ackCache.set(messageId, { ...messageData, ack: [serverId, ...messageData.ack] });
       }
     }
   }
-})
+});
 
 ee.addListener('set-write-concern', message => {
   const { messageId, writeConcern } = message;
@@ -111,6 +111,5 @@ ee.addListener('set-write-concern', message => {
     ackCache.set(messageId, { writeConcern, ack: [] });
   }
 });
-
 
 export { webSocketInstance };

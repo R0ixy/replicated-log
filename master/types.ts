@@ -1,4 +1,4 @@
-import type { Server, ServerWebSocket } from 'bun';
+import type { ServerWebSocket } from 'bun';
 
 interface Item {
   id: number;
@@ -16,20 +16,20 @@ interface ACKMessage {
   status: string;
 }
 
-interface replicateFunc {
+interface ReplicateFunc {
   ws: ServerWebSocket<{ serverId: string, isBlank: boolean }>;
   replicationHistory: Map<number, string[]>;
   serverId: string;
 }
 
-interface healthStatusesType {
+interface HealthStatusesType {
   [serverId: string]: number;
 }
 
 interface EventMessage {
-  serverId: string,
-  messageId: number,
-  status: string,
+  serverId: string;
+  messageId: number;
+  status: string;
 }
 
-export type { Item, ReqBody, ACKMessage, replicateFunc, healthStatusesType, EventMessage };
+export type { Item, ReqBody, ACKMessage, ReplicateFunc, HealthStatusesType, EventMessage };

@@ -14,10 +14,11 @@ const server = Bun.serve({
       case 'GET': {
         if (url.pathname === '/') {
           return new Response(JSON.stringify(messages));
-        } else if (url.pathname === '/health') {
+        }
+        if (url.pathname === '/health') {
           const result = getHealthStatuses(Date.now());
 
-          return new Response(JSON.stringify(result))
+          return new Response(JSON.stringify(result));
         }
         break;
       }
@@ -29,12 +30,12 @@ const server = Bun.serve({
           messages.push(newMessage);
 
           webSocketInstance.publish('replication', JSON.stringify({ route: 'new', data: newMessage }));
-          ee.emit('set-write-concern', { messageId: newMessage.id, writeConcern: w ? w - 1 : secondaries.size })
+          ee.emit('set-write-concern', { messageId: newMessage.id, writeConcern: w ? w - 1 : secondaries.size });
 
           startRetryProcess(1, newMessage);
 
           if (w === 1) { // if w === 1, it means we don't care about status of replication. Can respond immediately
-            console.log(`response without ACK for message ${newMessage.id}`)
+            console.log(`response without ACK for message ${newMessage.id}`);
             return new Response(JSON.stringify(newMessage));
           }
 
@@ -44,10 +45,10 @@ const server = Bun.serve({
           return new Response(JSON.stringify(newMessage));
 
         }
-        break
+        break;
       }
     }
-    return new Response("404!");
+    return new Response('404!');
   },
   port: 3000,
 });

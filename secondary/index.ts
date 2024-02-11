@@ -1,5 +1,5 @@
 import { messages, type eventData } from './utils.ts';
-import { appendMessage } from "./utils.ts";
+import { appendMessage } from './utils.ts';
 
 const { HOSTNAME, WEBSOCKET_HOST, RESPONSE_TIMEOUT } = process.env;
 
@@ -15,7 +15,7 @@ const server = Bun.serve({
         break;
       }
     }
-    return new Response("404!");
+    return new Response('404!');
   },
   port: 3001,
 });
@@ -24,10 +24,10 @@ console.log(`Listening on ${server.url}`);
 
 const socket = new WebSocket(`ws://${WEBSOCKET_HOST || 'localhost'}:8000?serverId=${HOSTNAME || 'secondary'}&isBlank=${Boolean(messages.length)}`);
 
-socket.addEventListener("open", event => {
+socket.addEventListener('open', () => {
   console.log('open socket connection');
 });
-socket.addEventListener("message", event => {
+socket.addEventListener('message', (event) => {
   console.log(event.data);
   const messageString = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data);
   const newMessageData: eventData = JSON.parse(messageString);
@@ -38,7 +38,7 @@ socket.addEventListener("message", event => {
       setTimeout(() => {
         appendMessage(socket, newMessage);
       }, Number(RESPONSE_TIMEOUT) || 10);
-    } catch (err) {
+    } catch {
       socket.send(JSON.stringify({ route: 'replication', messageId: newMessage.id, status: 'ERROR' }));
     }
 

@@ -1,71 +1,73 @@
 import { EventEmitter } from 'node:events';
-import type { ServerWebSocket, Server } from "bun";
+import type { ServerWebSocket } from 'bun';
 
 import { ackCache, healthStatuses, messages, replicationHistory, secondaries } from './store.ts';
-import type { replicateFunc } from './types.ts';
+import type { ReplicateFunc } from './types.ts';
 
 const ee = new EventEmitter();
 
-const nResolve = (promises: Promise<any[]>[], n: number): Promise<string[]> => {
+const nResolve = (promises: Promise<never[]>[], n: number): Promise<string[]> => {
   if (n < 0 || n > promises.length) return Promise.reject(`Invalid write concern: ${n}`);
 
-  const results: string[] = []
+  const results: string[] = [];
   let rejected = 0;
 
   return new Promise((resolve, reject) => {
     if (!n) resolve([]);
-    else promises.forEach(promise => promise.then(res => {
+    else promises.forEach(promise => promise.then((res) => {
       results.push(res[0]); // note: order is unpredictable
       if (results.length === n) resolve([...results]);
-    }, err => {
+    }, () => {
       // reject only when there are not enough promises left for n to resolve
       if (++rejected > promises.length - n) reject();
     }));
   });
-}
+};
 
-const replicateMissingData = ({ ws, replicationHistory, serverId }: replicateFunc) => {
-  messages.forEach((message) => {
+const replicateMissingData = ({ ws, replicationHistory, serverId }: ReplicateFunc): void => {
+  messages.forEach(message => {
     if (!replicationHistory.get(message.id)?.includes(serverId)) {
       ws.send(JSON.stringify({ route: 'old', data: message }));
 
       const servers = replicationHistory.get(message.id);
-      replicationHistory.set(message.id, [...(servers ? servers : []), serverId])
+      replicationHistory.set(message.id, [...(servers ? servers : []), serverId]);
 
       console.log('replicating old', JSON.stringify(message), 'to', serverId);
     }
   });
-}
+};
 
-const replicateAllData = ({ ws, replicationHistory, serverId }: replicateFunc) => {
-  messages.forEach((message) => {
+const replicateAllData = ({ ws, replicationHistory, serverId }: ReplicateFunc): void => {
+  messages.forEach(message => {
     ws.send(JSON.stringify({ route: 'old', data: message }));
 
     const servers = replicationHistory.get(message.id);
     if (!servers?.includes(serverId)) {
-      replicationHistory.set(message.id, [...(servers ? servers : []), serverId])
+      replicationHistory.set(message.id, [...(servers ? servers : []), serverId]);
     }
 
     console.log('replicating old', JSON.stringify(message), 'to', serverId);
   });
-}
+};
 
-const sendHeartbeat = (webSocketInstance: ServerWebSocket<{ serverId: string, isBlank: boolean }>) => {
+const sendHeartbeat = (webSocketInstance: ServerWebSocket<{ serverId: string, isBlank: boolean }>): void => {
   webSocketInstance.send(JSON.stringify({ route: 'health', data: 'ping' }));
-}
+};
 
-const getHealthStatuses = (currentTime: number) => Object.keys(healthStatuses).reduce((accumulator: object, key: string) => {
+const getHealthStatuses = (currentTime: number): { [messageId: string]: string } => Object.keys(healthStatuses).reduce((accumulator: object, key: string) => {
   const timeDiff = currentTime - healthStatuses[key];
+
   if (timeDiff <= 6000) {
     return { ...accumulator, [key]: 'healthy' };
-  } else if (6000 < timeDiff && timeDiff <= 10000) {
+
+  } if (6000 < timeDiff && timeDiff <= 10000) {
     return { ...accumulator, [key]: 'suspicious' };
-  } else {
-    return { ...accumulator, [key]: 'unhealthy' };
   }
+
+  return { ...accumulator, [key]: 'unhealthy' };
 }, {});
 
-const startRetryProcess = (n: number, newMessage: { id: number, message: string }) => {
+const startRetryProcess = (n: number, newMessage: { id: number, message: string }): void => {
   setTimeout(() => {
     const result = getHealthStatuses(Date.now());
     let isRetrySent = false;
@@ -78,7 +80,7 @@ const startRetryProcess = (n: number, newMessage: { id: number, message: string 
         if (!ackCacheData?.ack.includes(key) && !replicationHistoryData?.includes(key)) {
           secondaries.get(key)?.send(JSON.stringify({ route: 'retry', data: newMessage }));
           isRetrySent = true;
-          console.log(`sent retry to ${key} about message ${newMessage.id}`)
+          console.log(`sent retry to ${key} about message ${newMessage.id}`);
         }
       }
     });
@@ -87,6 +89,6 @@ const startRetryProcess = (n: number, newMessage: { id: number, message: string 
     else return;
 
   }, 3000 * n);
-}
+};
 
 export { ee, nResolve, replicateMissingData, replicateAllData, sendHeartbeat, getHealthStatuses, startRetryProcess };

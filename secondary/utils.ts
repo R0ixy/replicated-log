@@ -10,9 +10,9 @@ interface eventData {
 
 const messages: Item[] = [];
 
-const appendMessage = (socket: WebSocket, newMessage: Item) => {
+const appendMessage = (socket: WebSocket, newMessage: Item): void => {
   if (Math.floor(Math.random() * 4) === 0) {
-    console.log("simulating replication error");
+    console.log('simulating replication error');
     return;
   }
   if (!messages.find(message => message.id === newMessage.id)) { // ensure messages deduplication
@@ -23,6 +23,6 @@ const appendMessage = (socket: WebSocket, newMessage: Item) => {
     }
     socket.send(JSON.stringify({ route: 'replication', messageId: newMessage.id, status: 'ACK' }));
   }
-}
+};
 
 export { messages, appendMessage, type Item, type eventData };
