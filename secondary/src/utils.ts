@@ -1,16 +1,5 @@
-interface Item {
-  id: number;
-  message: string;
-}
-
-interface eventData {
-  route: string;
-  data: Item;
-}
-
-const messages: Item[] = [];
-
-const upcomingMessagesCache = new Map<number, Item>();
+import type { Item } from './types.ts';
+import { messages, upcomingMessagesCache } from './store.ts';
 
 const appendMessage = (socket: WebSocket, newMessage: Item): void => {
   if (Math.floor(Math.random() * 2) === 0) {
@@ -43,4 +32,4 @@ const appendMessage = (socket: WebSocket, newMessage: Item): void => {
   }
 };
 
-export { messages, appendMessage, type Item, type eventData };
+export { appendMessage };

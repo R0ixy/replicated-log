@@ -1,5 +1,6 @@
-import { messages, type eventData } from './utils.ts';
+import { messages } from './store.ts';
 import { appendMessage } from './utils.ts';
+import type { EventData } from './types.ts';
 
 const { HOSTNAME, WEBSOCKET_HOST, RESPONSE_TIMEOUT } = process.env;
 
@@ -30,7 +31,7 @@ socket.addEventListener('open', () => {
 socket.addEventListener('message', (event) => {
   console.log(event.data);
   const messageString = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data);
-  const newMessageData: eventData = JSON.parse(messageString);
+  const newMessageData: EventData = JSON.parse(messageString);
   const { route, data: newMessage } = newMessageData;
 
   if (route === 'new') {
