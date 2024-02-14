@@ -1,8 +1,9 @@
 import { once } from 'node:events';
 
-import { webSocketInstance } from './websocket.ts';
+import { socket } from './websocket.ts';
 import { secondaries, messages } from './store.ts';
-import { ee, getHealthStatuses, startRetryProcess } from './utils.ts';
+import { getHealthStatuses, startRetryProcess } from './utils.ts';
+import { ee } from './eventEmitter.ts';
 
 import type { ReqBody } from './types.ts';
 
@@ -29,7 +30,7 @@ const server = Bun.serve({
           const newMessage = { id: messages.length + 1, message };
           messages.push(newMessage);
 
-          webSocketInstance.publish('replication', JSON.stringify({ route: 'new', data: newMessage }));
+          secondaries.forEach(socket => socket.write(JSON.stringify({ route: 'new', data: newMessage })));
           ee.emit('set-write-concern', { messageId: newMessage.id, writeConcern: w ? w - 1 : secondaries.size });
 
           startRetryProcess(1, newMessage);
@@ -54,3 +55,4 @@ const server = Bun.serve({
 });
 
 console.log(`Listening on ${server.url}`);
+console.log(`Socket is live on ${socket.hostname}:${socket.port}`);

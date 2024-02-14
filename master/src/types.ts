@@ -1,4 +1,4 @@
-import type { ServerWebSocket } from 'bun';
+import type { Socket } from 'bun';
 
 interface Item {
   id: number;
@@ -17,7 +17,7 @@ interface ACKMessage {
 }
 
 interface ReplicateFunc {
-  ws: ServerWebSocket<{ serverId: string, isBlank: boolean }>;
+  socket: Socket<{ serverId: string }>;
   replicationHistory: Map<number, string[]>;
   serverId: string;
 }
