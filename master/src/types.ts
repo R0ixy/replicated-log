@@ -10,12 +10,6 @@ interface ReqBody {
   w: number | undefined;
 }
 
-interface ACKMessage {
-  route: string;
-  messageId: number;
-  status: string;
-}
-
 interface ReplicateFunc {
   socket: Socket<{ serverId: string }>;
   replicationHistory: Map<number, string[]>;
@@ -32,4 +26,4 @@ interface EventMessage {
   status: string;
 }
 
-export type { Item, ReqBody, ACKMessage, ReplicateFunc, HealthStatusesType, EventMessage };
+export type { Item, ReqBody, ReplicateFunc, HealthStatusesType, EventMessage };

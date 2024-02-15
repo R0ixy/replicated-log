@@ -3,9 +3,4 @@ interface Item {
   message: string;
 }
 
-interface EventData {
-  route: string;
-  data: Item;
-}
-
-export type { Item, EventData };
+export type { Item };
