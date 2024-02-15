@@ -39,7 +39,7 @@ const socket = Bun.connect({
 
             case 'old':
               console.log('Received:', message);
-              messages.push(newMessage);
+              messages.push(...newMessage);
               messages.sort((message1, message2) => message1.id - message2.id);
               break;
 
