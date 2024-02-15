@@ -80,4 +80,22 @@ const startRetryProcess = (n: number, newMessage: { id: number, message: string 
   }, 3000 * n);
 };
 
-export { replicateMissingData, replicateAllData, sendHeartbeat, getHealthStatuses, startRetryProcess, prepareMessageToSend };
+const getWriteConcernValue = (w: number | undefined, secondariesNumber: number): number => {
+  if (!w) {
+    return secondariesNumber;
+  }
+  if (w - 1 > secondaries.size) {
+    return secondariesNumber;
+  }
+  return w - 1;
+};
+
+export {
+  replicateMissingData,
+  replicateAllData,
+  sendHeartbeat,
+  getHealthStatuses,
+  startRetryProcess,
+  prepareMessageToSend,
+  getWriteConcernValue,
+};

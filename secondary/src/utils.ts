@@ -21,9 +21,10 @@ const appendMessage = (socket: Socket, newMessage: Item): void => {
       // append messages only when they come in order, otherwise set them to cache
       messages.push(newMessage);
 
-      if (upcomingMessagesCache.has(newMessage.id + 1)) {
+      if (upcomingMessagesCache.has(newMessage.id + 1)) { // check if in cache there is a message that should come after current one
         const index = messages.at(-1)?.id || 0;
-        for (const message of [...upcomingMessagesCache.entries()]) {
+        const preparedCacheData = [...upcomingMessagesCache.entries()].sort((value1, value2) => value1[1].id - value2[1].id);
+        for (const message of preparedCacheData) {
           if (index + 1 === message[0]) {
             messages.push(message[1]);
             upcomingMessagesCache.delete(message[0]);
