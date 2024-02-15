@@ -1,8 +1,8 @@
 import { once } from 'node:events';
 
-import { socket } from './websocket.ts';
+import { socket } from './tcpsocket.ts';
 import { secondaries, messages } from './store.ts';
-import { getHealthStatuses, startRetryProcess } from './utils.ts';
+import { getHealthStatuses, startRetryProcess, prepareMessageToSend } from './utils.ts';
 import { ee } from './eventEmitter.ts';
 
 import type { ReqBody } from './types.ts';
@@ -30,8 +30,16 @@ const server = Bun.serve({
           const newMessage = { id: messages.length + 1, message };
           messages.push(newMessage);
 
-          secondaries.forEach(socket => socket.write(JSON.stringify({ route: 'new', data: newMessage })));
           ee.emit('set-write-concern', { messageId: newMessage.id, writeConcern: w ? w - 1 : secondaries.size });
+
+          if (!w || w - 1 <= secondaries.size) {
+            secondaries.forEach(socket => socket.write(prepareMessageToSend('new', newMessage)));
+          } else {
+            // if there is not enough secondaries, when a new node will connect, all messages will be replicated automatically
+            // So we can send response immediately
+            await once(ee, `${w - 1}-servers-online`);
+            return new Response(JSON.stringify(newMessage));
+          }
 
           startRetryProcess(1, newMessage);
 

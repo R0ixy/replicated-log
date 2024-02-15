@@ -3,6 +3,13 @@ import type { Socket } from 'bun';
 import type { Item } from './types.ts';
 import { messages, upcomingMessagesCache } from './store.ts';
 
+const prepareMessageToSend = (route: string, data: unknown): Buffer => {
+  const messageLengthBuffer = Buffer.alloc(4);
+  const message = JSON.stringify({ route, data });
+  messageLengthBuffer.writeUInt32BE(message.length);
+  return Buffer.concat([messageLengthBuffer, Buffer.from(message)]);
+};
+
 const appendMessage = (socket: Socket, newMessage: Item): void => {
   if (Math.floor(Math.random() * 2) === 0) { // artificially adding a change to get an 'error' instead of processing a message
     console.log('simulating replication error');
@@ -30,8 +37,8 @@ const appendMessage = (socket: Socket, newMessage: Item): void => {
     } else {
       upcomingMessagesCache.set(newMessage.id, newMessage);
     }
-    socket.write(JSON.stringify({ route: 'replication', data: { messageId: newMessage.id, status: 'ACK' } }));
+    socket.write(prepareMessageToSend('replication', { messageId: newMessage.id, status: 'ACK' }));
   }
 };
 
-export { appendMessage };
+export { appendMessage, prepareMessageToSend };

@@ -3,6 +3,13 @@ import type { Socket } from 'bun';
 import { ackCache, healthStatuses, messages, replicationHistory, secondaries } from './store.ts';
 import type { Item, ReplicateFunc } from './types.ts';
 
+const prepareMessageToSend = (route: string, data: unknown): Buffer => {
+  const messageLengthBuffer = Buffer.alloc(4);
+  const message = JSON.stringify({ route, data });
+  messageLengthBuffer.writeUInt32BE(message.length);
+  return Buffer.concat([messageLengthBuffer, Buffer.from(message)]);
+};
+
 const replicateMissingData = ({ socket, replicationHistory, serverId }: ReplicateFunc): void => {
   const dataToSend = <Item[]>[];
 
@@ -16,7 +23,7 @@ const replicateMissingData = ({ socket, replicationHistory, serverId }: Replicat
       console.log('replicating old', JSON.stringify(message), 'to', serverId);
     }
   });
-  if (dataToSend.length) socket.write(JSON.stringify({ route: 'old', data: dataToSend }));
+  if (dataToSend.length) socket.write(prepareMessageToSend('old', dataToSend));
 };
 
 const replicateAllData = ({ socket, replicationHistory, serverId }: ReplicateFunc): void => {
@@ -29,11 +36,11 @@ const replicateAllData = ({ socket, replicationHistory, serverId }: ReplicateFun
 
     console.log('replicating old', JSON.stringify(message), 'to', serverId);
   });
-  if (messages.length) socket.write(JSON.stringify({ route: 'old', data: messages }));
+  if (messages.length) socket.write(prepareMessageToSend('old', messages));
 };
 
 const sendHeartbeat = (webSocket: Socket<{ serverId: string }>): void => {
-  webSocket.write(JSON.stringify({ route: 'health', data: 'ping' }));
+  webSocket.write(prepareMessageToSend('health', 'ping'));
 };
 
 const getHealthStatuses = (currentTime: number): { [messageId: string]: string } => Object.keys(healthStatuses).reduce((accumulator: object, key: string) => {
@@ -60,7 +67,7 @@ const startRetryProcess = (n: number, newMessage: { id: number, message: string 
         const replicationHistoryData = replicationHistory.get(newMessage.id);
 
         if (!ackCacheData?.ack.includes(key) && !replicationHistoryData?.includes(key)) {
-          secondaries.get(key)?.write(JSON.stringify({ route: 'retry', data: newMessage }));
+          secondaries.get(key)?.write(prepareMessageToSend('retry', newMessage));
           isRetrySent = true;
           console.log(`sent retry to ${key} about message ${newMessage.id}`);
         }
@@ -73,4 +80,4 @@ const startRetryProcess = (n: number, newMessage: { id: number, message: string 
   }, 3000 * n);
 };
 
-export { replicateMissingData, replicateAllData, sendHeartbeat, getHealthStatuses, startRetryProcess };
+export { replicateMissingData, replicateAllData, sendHeartbeat, getHealthStatuses, startRetryProcess, prepareMessageToSend };
