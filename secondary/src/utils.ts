@@ -23,6 +23,7 @@ const appendMessage = (socket: Socket, newMessage: Item): void => {
 
       if (upcomingMessagesCache.has(newMessage.id + 1)) { // check if in cache there is a message that should come after current one
         const index = messages.at(-1)?.id || 0;
+        // we don't have any guarantees about message order, so it's better to execute sort operation
         const preparedCacheData = [...upcomingMessagesCache.entries()].sort((value1, value2) => value1[1].id - value2[1].id);
         for (const message of preparedCacheData) {
           if (index + 1 === message[0]) {
