@@ -57,7 +57,7 @@ Check messages on S2 - [Msg1, Msg2, Msg3, Msg4]
 2024-02-16T21:58:02.590073079Z [TCP] sent {"route":"replication","data":{"messageId":4,"status":"ACK"}}
 ```
 
-S2 logs:
+## S2 logs:
 ```
 2024-02-16T21:58:13.018781439Z Listening on http://localhost:3001/
 2024-02-16T21:58:13.018826034Z [TCP] sent {"route":"connect","data":{"serverId":"ac9e2817daf8","isBlank":true}}
