@@ -15,7 +15,9 @@ const server = Bun.serve({
     switch (method) {
       case 'GET': {
         if (url.pathname === '/') {
-          return new Response(JSON.stringify(messages));
+          const messagesString = JSON.stringify(messages);
+          console.log(`[HTTP] response for ${method} request on ${url.pathname}: ${messagesString}`);
+          return new Response(messagesString);
         }
         if (url.pathname === '/health') {
           const result = getHealthStatuses(Date.now());
