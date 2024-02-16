@@ -11,6 +11,7 @@ const server = Bun.serve({
   async fetch(req) {
     const url = new URL(req.url);
     const method = req.method;
+    console.log(`[HTTP] received ${method} request on ${url.pathname}`);
     switch (method) {
       case 'GET': {
         if (url.pathname === '/') {
@@ -43,13 +44,13 @@ const server = Bun.serve({
           }
 
           if (w === 1) { // if w === 1, it means we don't care about status of replication. Can respond immediately
-            console.log(`response without ACK for message ${newMessage.id}`);
+            console.log(`[HTTP] response without ACK for message ${newMessage.id}`);
             return new Response(JSON.stringify(newMessage));
           }
 
           await once(ee, `ack-${newMessage.id}`);
-          console.log(`all ${w ? w - 1 : secondaries.size} ACKs for message ${newMessage.id} received`);
 
+          console.log(`[HTTP] response after ${w ? w - 1 : secondaries.size} ACK for message ${newMessage.id}`);
           return new Response(JSON.stringify(newMessage));
 
         }

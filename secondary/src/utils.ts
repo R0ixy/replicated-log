@@ -6,6 +6,7 @@ import { messages, upcomingMessagesCache } from './store.ts';
 const prepareMessageToSend = (route: string, data: unknown): Buffer => {
   const messageLengthBuffer = Buffer.alloc(4);
   const message = JSON.stringify({ route, data });
+  if (route !== 'health') console.log(`[TCP] sent ${message}`); // logging everything except hearth beats
   messageLengthBuffer.writeUInt32BE(message.length);
   return Buffer.concat([messageLengthBuffer, Buffer.from(message)]);
 };

@@ -27,7 +27,7 @@ const socket = Bun.connect({
 
           switch (route) {
             case 'new':
-              console.log('Received:', message);
+              console.log('[TCP] received', message);
               try {
                 setTimeout(() => {
                   appendMessage(socket, newMessage);
@@ -38,7 +38,7 @@ const socket = Bun.connect({
               break;
 
             case 'old':
-              console.log('Received:', message);
+              console.log('[TCP] received', message);
               messages.push(...newMessage);
               messages.sort((message1, message2) => message1.id - message2.id);
               break;
@@ -48,7 +48,7 @@ const socket = Bun.connect({
               break;
 
             case 'retry':
-              console.log('Received:', message);
+              console.log('[TCP] received', message);
               appendMessage(socket, newMessage);
               break;
           }

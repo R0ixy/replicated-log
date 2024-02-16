@@ -6,6 +6,7 @@ const server = Bun.serve({
   async fetch(req) {
     const url = new URL(req.url);
     const method = req.method;
+    console.log(`[HTTP] received ${method} request on ${url.pathname}`);
     switch (method) {
       case 'GET': {
         if (url.pathname === '/') {

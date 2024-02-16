@@ -6,6 +6,7 @@ import type { Item, ReplicateFunc } from './types.ts';
 const prepareMessageToSend = (route: string, data: unknown): Buffer => {
   const messageLengthBuffer = Buffer.alloc(4);
   const message = JSON.stringify({ route, data });
+  if (route !== 'health') console.log(`[TCP] sent ${message}`); // logging everything except hearth beats
   messageLengthBuffer.writeUInt32BE(message.length);
   return Buffer.concat([messageLengthBuffer, Buffer.from(message)]);
 };
@@ -19,8 +20,6 @@ const replicateMissingData = ({ socket, replicationHistory, serverId }: Replicat
 
       const servers = replicationHistory.get(message.id);
       replicationHistory.set(message.id, [...(servers ? servers : []), serverId]);
-
-      console.log('replicating old', JSON.stringify(message), 'to', serverId);
     }
   });
   if (dataToSend.length) socket.write(prepareMessageToSend('old', dataToSend));
@@ -33,8 +32,6 @@ const replicateAllData = ({ socket, replicationHistory, serverId }: ReplicateFun
     if (!servers?.includes(serverId)) {
       replicationHistory.set(message.id, [...(servers ? servers : []), serverId]);
     }
-
-    console.log('replicating old', JSON.stringify(message), 'to', serverId);
   });
   if (messages.length) socket.write(prepareMessageToSend('old', messages));
 };
@@ -69,7 +66,6 @@ const startRetryProcess = (n: number, newMessage: { id: number, message: string 
         if (!ackCacheData?.ack.includes(key) && !replicationHistoryData?.includes(key)) {
           secondaries.get(key)?.write(prepareMessageToSend('retry', newMessage));
           isRetrySent = true;
-          console.log(`sent retry to ${key} about message ${newMessage.id}`);
         }
       }
     });

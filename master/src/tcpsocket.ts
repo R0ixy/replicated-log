@@ -23,7 +23,7 @@ const socket = Bun.listen<{ serverId: string }>({
 
           switch (route) {
             case 'connect':
-              console.log('Received:', messageString);
+              console.log('[TCP] received', messageString);
               // add socket instance to Map by server id
               secondaries.set(message.serverId, socket);
               socket.data = { serverId: message.serverId };
@@ -41,7 +41,7 @@ const socket = Bun.listen<{ serverId: string }>({
 
             case 'replication':
             case 'retry':
-              console.log('Received:', messageString);
+              console.log('[TCP] received', messageString);
               ee.emit('ack-message', { serverId: socket.data.serverId, messageId: message.messageId, status: message.status });
               break;
 
