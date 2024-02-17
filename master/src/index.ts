@@ -43,8 +43,10 @@ const server = Bun.serve({
 
           ee.emit('set-write-concern', { messageId: newMessage.id, writeConcern: getWriteConcernValue(w, secondaries.size) });
 
-          secondaries.forEach(socket => socket.write(prepareMessageToSend('new', newMessage)));
-          startRetryProcess(1, newMessage);
+          secondaries.forEach((socket, key) => {
+            socket.write(prepareMessageToSend('new', newMessage))
+            startRetryProcess(key, 1, newMessage);
+          });
 
           if (!!w && w - 1 > secondaries.size) {
             // if there is not enough secondaries, when a new node will connect, all messages will be replicated automatically

@@ -1,7 +1,10 @@
 import type { Socket } from 'bun';
+import { once } from "node:events";
 
 import { ackCache, healthStatuses, messages, replicationHistory, secondaries } from './store.ts';
-import type { Item, ReplicateFunc } from './types.ts';
+import type { Item, ReplicateFunc, HealthStatusesType } from './types.ts';
+import { HealthStatuses } from './enums.ts';
+import { ee } from "./eventEmitter.ts";
 
 const prepareMessageToSend = (route: string, data: unknown): Buffer => {
   const messageLengthBuffer = Buffer.alloc(4);
@@ -40,8 +43,8 @@ const sendHeartbeat = (webSocket: Socket<{ serverId: string }>): void => {
   webSocket.write(prepareMessageToSend('health', 'ping'));
 };
 
-const getHealthStatuses = (currentTime: number): { [messageId: string]: string } => Object.keys(healthStatuses).reduce((accumulator: object, key: string) => {
-  const timeDiff = currentTime - healthStatuses[key];
+const getHealthStatuses = (currentTime: number): HealthStatusesType => [...healthStatuses.entries()].reduce((accumulator: object, [key, value]) => {
+  const timeDiff = currentTime - value;
 
   if (timeDiff <= 6000) {
     return { ...accumulator, [key]: 'healthy' };
@@ -53,24 +56,26 @@ const getHealthStatuses = (currentTime: number): { [messageId: string]: string }
   return { ...accumulator, [key]: 'unhealthy' };
 }, {});
 
-const startRetryProcess = (n: number, newMessage: { id: number, message: string }): void => {
-  setTimeout(() => {
+const startRetryProcess = (key: string, n: number, newMessage: { id: number, message: string }): void => {
+  setTimeout(async () => {
     const result = getHealthStatuses(Date.now());
-    let isRetrySent = false;
+    let continueRetries = false;
 
-    Object.keys(result).forEach(key => {
-      if (result[key] !== 'unhealthy') {
-        const ackCacheData = ackCache.get(newMessage.id);
-        const replicationHistoryData = replicationHistory.get(newMessage.id);
+    if (result[key] !== HealthStatuses.unhealthy) {
+      const ackCacheData = ackCache.get(newMessage.id);
+      const replicationHistoryData = replicationHistory.get(newMessage.id);
 
-        if (!ackCacheData?.ack.includes(key) && !replicationHistoryData?.includes(key)) {
-          secondaries.get(key)?.write(prepareMessageToSend('retry', newMessage));
-          isRetrySent = true;
-        }
+      if (!ackCacheData?.ack.includes(key) && !replicationHistoryData?.includes(key)) {
+        secondaries.get(key)?.write(prepareMessageToSend('retry', newMessage));
+        continueRetries = true;
       }
-    });
+    } else {
+      // pausing retry process until receiving health update from secondary
+      await once(ee, `${key}-healthStatusUpdate`);
+      continueRetries = true;
+    }
 
-    if (isRetrySent) startRetryProcess(n * 1.5, newMessage);
+    if (continueRetries) startRetryProcess(key, n * 1.5, newMessage);
     else return;
 
   }, 3000 * n);

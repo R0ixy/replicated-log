@@ -1,5 +1,7 @@
 import type { Socket } from 'bun';
 
+import { HealthStatuses } from './enums.ts';
+
 interface Item {
   id: number;
   message: string;
@@ -17,7 +19,7 @@ interface ReplicateFunc {
 }
 
 interface HealthStatusesType {
-  [serverId: string]: number;
+  [serverId: string]: HealthStatuses;
 }
 
 interface EventMessage {

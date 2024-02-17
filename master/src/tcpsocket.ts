@@ -47,7 +47,7 @@ const socket = Bun.listen<{ serverId: string }>({
 
             case 'health':
               // set current time as last time when server was healthy
-              healthStatuses[socket.data.serverId] = Date.now();
+              healthStatuses.set(socket.data.serverId, Date.now());
               break;
           }
 
@@ -63,7 +63,7 @@ const socket = Bun.listen<{ serverId: string }>({
       secondaries.delete(socket.data.serverId);
 
       // reset health status
-      healthStatuses[socket.data.serverId] = 0;
+      healthStatuses.set(socket.data.serverId, 0);
       // clear hearth beat process
       clearInterval(interval[socket.data.serverId]);
 
