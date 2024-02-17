@@ -28,6 +28,14 @@ const server = Bun.serve({
       }
       case 'POST': {
         if (url.pathname === '/') {
+          // check if there is quorum
+          const health = getHealthStatuses(Date.now());
+          const numberOfHealthy = Object.values(health).filter(item => item === 'healthy').length;
+          if (numberOfHealthy + 1 < Math.floor(secondaries.size + 1 / 2)) {
+            console.log(`[HTTP] response for ${method} request on ${url.pathname}: 'Error: no quorum'`)
+            return new Response(JSON.stringify('Error: no quorum')); // if no quorum - return appropriate message
+          }
+
           const data: ReqBody = await req.json();
           const { message, w } = data;
           const newMessage = { id: messages.length + 1, message };
